@@ -1,5 +1,6 @@
 /notes
 /build
 /node_modules
+/docs/tasks
 env.sh
 .dir-locals.el
