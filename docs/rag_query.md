@@ -30,8 +30,8 @@ Chunks are numbered `[1]`, `[2]`, ... in the order they appear in the context. T
 
 ```ts
 interface QueryConfig {
-  embeddingModel?: string; // default: "openai/text-embedding-3-small"
-  chatModel?: string;      // default: "anthropic/claude-3.5-haiku"
+  embeddingModel?: string; // default: DEFAULT_EMBEDDING_MODEL
+  chatModel?: string;      // default: DEFAULT_CHAT_MODEL
   k?: number;              // number of chunks to retrieve (default: 5)
 }
 

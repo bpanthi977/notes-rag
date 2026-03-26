@@ -52,7 +52,7 @@ Embeds and persists a list of files (as returned by `getFilesToIndex`).
 
 ```ts
 interface IngestOptions {
-  embeddingModel?: string;        // default: "openai/text-embedding-3-small"
+  embeddingModel?: string;        // default: DEFAULT_EMBEDDING_MODEL
   maxFilesForChunks?: number;     // files per batch (default: 50)
   maxChunksForEmbedding?: number; // max chunks per embed() API call (default: 100)
 }

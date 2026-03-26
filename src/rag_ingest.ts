@@ -22,7 +22,7 @@ export interface IngestProgress {
 }
 
 export interface IngestOptions {
-  embeddingModel?: string; // default: "openai/text-embedding-3-small"
+  embeddingModel?: string; // default: DEFAULT_EMBEDDING_MODEL
   maxFilesForChunks?: number; // max files to chunk at once (default: 50)
   maxChunksForEmbedding?: number; // max chunks per embed() API call (default: embed()'s own batch size)
   progressBarCreator?: (totalFiles: number) => {
