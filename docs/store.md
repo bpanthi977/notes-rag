@@ -26,11 +26,11 @@ This means editing a few paragraphs in a large file costs only a few embedding c
 
 ## Interface
 
-### `initDB(dbPath?: string): Database`
+### `initDB(dbPath: string): Database`
 
-Opens or creates the SQLite database at `dbPath` (default: `./data/vector-store.db`), creates all tables and indexes if absent, and returns the database handle.
+Opens or creates the SQLite database at `dbPath`, creates all tables and indexes if absent, and returns the database handle.
 
-### `upsertChunks(db, chunks: Chunk[], hashes: string[], vectors: number[][], model: string): void`
+### `upsertFileChunks(db, chunks: Chunk[], hashes: string[], vectors: number[][], model: string): void`
 
 Deletes all existing rows for `chunks[0].filePath`, then inserts the new chunks with their `content_hash` values and embedding vectors in a single transaction.
 
@@ -45,10 +45,6 @@ Returns a map of `filePath → mtime_ms` for all files currently tracked in `fil
 ### `upsertFileIndex(db, filePath: string, mtimeMs: number): void`
 
 Records (or updates) the indexed mtime for a file. Called only after `upsertChunks` succeeds so that a failed embedding run leaves no stale index entry.
-
-### `deleteStaleFiles(db, stalePaths: string[]): void`
-
-Removes `file_index` rows and all `chunks` rows (cascading to `embeddings`) for the given paths, in a single transaction.
 
 ### `getAllVectors(db): { chunkId: number; vector: Float32Array }[]`
 

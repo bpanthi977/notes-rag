@@ -14,7 +14,8 @@ Building a local RAG (Retrieval-Augmented Generation) system over personal `.org
 │   ├── chunker.ts      # Parse .org files → paragraph chunks (with overlap)
 │   ├── embeddings.ts   # OpenRouter embedding API calls
 │   ├── store.ts        # SQLite: store/load chunks + embedding vectors
-│   ├── rag.ts          # Top-k retrieval + LLM answer generation
+│   ├── rag_ingest.ts   # Ingest org notes into the vector store (incremental)
+│   ├── rag_query.ts    # Top-k retrieval + LLM answer generation
 │   └── utils.ts        # Shared utilities (walkOrgFiles)
 ├── notes/              # User's .org files (created by user)
 ├── data/
@@ -35,10 +36,13 @@ Building a local RAG (Retrieval-Augmented Generation) system over personal `.org
   - Specify the files you are committing in `git add` because, other
 	changes might be going on parallely by the user.
 
-- When you are given a tasks save the task specification and the plan
+- After planning save the task specification and the plan
   inside docs/tasks/ with numbered filename (e.g. 01 setup project.md)
 
   After completion the tasks are moved to docs/tasks/done
+
+  When asked to work on a task, just read that particular tasks file
+  and other architecture files from docs/. Don't read other task files.
 
 - Document architectural and design decisions inside docs/ and link
   those files in architecture section of CLAUDE.md

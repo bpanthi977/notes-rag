@@ -3,9 +3,7 @@ import * as path from 'path';
 import Database from 'better-sqlite3';
 import { Chunk } from './chunker';
 
-const DEFAULT_DB_PATH = './data/vector-store.db';
-
-export function initDB(dbPath: string = DEFAULT_DB_PATH): Database.Database {
+export function initDB(dbPath: string): Database.Database {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
   const db = new Database(dbPath);
@@ -39,7 +37,7 @@ export function initDB(dbPath: string = DEFAULT_DB_PATH): Database.Database {
   return db;
 }
 
-export function upsertChunks(
+export function upsertFileChunks(
   db: Database.Database,
   chunks: Chunk[],
   hashes: string[],
@@ -115,15 +113,6 @@ export function upsertFileIndex(
   db.prepare(
     'INSERT OR REPLACE INTO file_index (file_path, mtime_ms, indexed_at) VALUES (?, ?, ?)'
   ).run(filePath, mtimeMs, Date.now());
-}
-
-export function deleteStaleFiles(db: Database.Database, stalePaths: string[]): void {
-  if (stalePaths.length === 0) return;
-  const placeholders = stalePaths.map(() => '?').join(', ');
-  db.transaction(() => {
-    db.prepare(`DELETE FROM chunks WHERE file_path IN (${placeholders})`).run(...stalePaths);
-    db.prepare(`DELETE FROM file_index WHERE file_path IN (${placeholders})`).run(...stalePaths);
-  })();
 }
 
 export function getAllVectors(db: Database.Database): { chunkId: number; vector: Float32Array }[] {
