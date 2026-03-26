@@ -34,25 +34,35 @@ Processing is done in batches (default 50 files) to balance memory usage and API
 
 ## Interface
 
-### `ingest(notesDir: string, db: Database, client: OpenRouter, options?: IngestOptions): Promise<void>`
+### `getFilesToIndex(notesDir, db, force?): FileInfo[]`
 
-The main entry point for the ingestion pipeline.
+Scans the notes directory, removes stale (deleted) files from the DB, and returns the list of files that need (re-)indexing.
+
+```ts
+interface FileInfo { filePath: string; mtime: number }
+
+getFilesToIndex(notesDir: string, db: Database, force?: boolean): FileInfo[]
+// force=true bypasses mtime check and returns all files
+```
+
+### `ingestFiles(filesToIndex, db, client, options?): Promise<void>`
+
+Embeds and persists a list of files (as returned by `getFilesToIndex`).
 
 ```ts
 interface IngestOptions {
-  force?: boolean;                // Bypass mtime check and re-process all files
-  embeddingModel?: string;        // The model to use (default: "openai/text-embedding-3-small")
-  maxFilesForChunks?: number;     // Number of files to process in one batch (default: 50)
-  maxChunksForEmbedding?: number; // Max chunks per embed() API call
+  embeddingModel?: string;        // default: "openai/text-embedding-3-small"
+  maxFilesForChunks?: number;     // files per batch (default: 50)
+  maxChunksForEmbedding?: number; // max chunks per embed() API call (default: 100)
 }
 ```
 
 ### Flow summary:
-1. `getFilesToIndex`: Scans directory, removes stale files, and identifies changed files.
-2. For each batch of files:
+1. Call `getFilesToIndex` to scan for changes and clean up deleted files from db.
+2. Pass the result to `ingestFiles`, which processes in batches:
    - Chunk and hash texts.
    - Fetch existing vectors from DB.
-   - Embed remaining texts via API.
+   - Embed uncached chunks via API.
    - `upsertFileChunks`: Update `chunks` and `embeddings` tables.
    - `upsertFileIndex`: Update `file_index` with new `mtime_ms`.
-3. Log summary of processed files, chunks, and API calls saved.
+3. Logs summary: files, chunks, reused vs new embeddings.

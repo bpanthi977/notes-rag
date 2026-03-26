@@ -15,7 +15,6 @@ import { embed } from './embeddings';
 import { DEFAULT_EMBEDDING_MODEL, DEFAULT_MAX_FILES_FOR_CHUNKS, DEFAULT_MAX_CHUNKS_FOR_EMBEDDING } from './constants';
 
 export interface IngestOptions {
-  force?: boolean; // force=true bypasses mtime check
   embeddingModel?: string; // default: "openai/text-embedding-3-small"
   maxFilesForChunks?: number; // max files to chunk at once (default: 50)
   maxChunksForEmbedding?: number; // max chunks per embed() API call (default: embed()'s own batch size)
@@ -25,11 +24,16 @@ function computeHash(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
-async function getFilesToIndex(
+export interface FileInfo {
+  filePath: string;
+  mtime: number
+}
+
+export function getFilesToIndex(
   notesDir: string,
   db: Database.Database,
-  options: IngestOptions
-): Promise<{ filePath: string; mtime: number }[]> {
+  force: boolean = false // force = true bypasses mtime check
+): FileInfo[] {
   const allCurrentPaths = walkOrgFiles(notesDir);
   const trackedFiles = getFileIndex(db);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
@@ -47,7 +51,7 @@ async function getFilesToIndex(
     const mtime = stats.mtimeMs;
     const lastMtime = trackedFiles.get(filePath);
 
-    if (options.force || lastMtime === undefined || mtime !== lastMtime) {
+    if (force || lastMtime === undefined || mtime !== lastMtime) {
       filesToIndex.push({ filePath, mtime });
     }
   }
@@ -55,20 +59,17 @@ async function getFilesToIndex(
   return filesToIndex;
 }
 
-export async function ingest(
-  notesDir: string,
+export async function ingestFiles(
+  filesToIndex: FileInfo[],
   db: Database.Database,
   client: OpenRouter,
   options: IngestOptions = {}
 ): Promise<void> {
   const {
-    force = false,
     embeddingModel = DEFAULT_EMBEDDING_MODEL,
     maxFilesForChunks = DEFAULT_MAX_FILES_FOR_CHUNKS,
     maxChunksForEmbedding = DEFAULT_MAX_CHUNKS_FOR_EMBEDDING,
   } = options;
-
-  const filesToIndex = getFilesToIndex(notesDir, db, { force });
 
   if (filesToIndex.length === 0) {
     console.log('No new or changed files to ingest.');
@@ -98,22 +99,22 @@ export async function ingest(
 
     for (const file of fileData) {
       for (let j = 0; j < file.chunks.length; j++) {
-        const hash = file.hashes[j];
-        if (!cachedVectors.has(hash) && !textToEmbedSet.has(file.chunks[j].text)) {
-          chunksToEmbed.push({ text: file.chunks[j].text, hash });
-          textToEmbedSet.add(file.chunks[j].text);
-        }
+	const hash = file.hashes[j];
+	if (!cachedVectors.has(hash) && !textToEmbedSet.has(file.chunks[j].text)) {
+	  chunksToEmbed.push({ text: file.chunks[j].text, hash });
+	  textToEmbedSet.add(file.chunks[j].text);
+	}
       }
     }
 
     if (chunksToEmbed.length > 0) {
       const newVectors = await embed(
-        chunksToEmbed.map(c => c.text),
-        client,
-        { model: embeddingModel, batchSize: maxChunksForEmbedding }
+	chunksToEmbed.map(c => c.text),
+	client,
+	{ model: embeddingModel, batchSize: maxChunksForEmbedding }
       );
       for (let j = 0; j < chunksToEmbed.length; j++) {
-        cachedVectors.set(chunksToEmbed[j].hash, new Float32Array(newVectors[j]));
+	cachedVectors.set(chunksToEmbed[j].hash, new Float32Array(newVectors[j]));
       }
       newEmbeddingsCount += chunksToEmbed.length;
     }
@@ -122,7 +123,7 @@ export async function ingest(
       const vectorsForFile: number[][] = file.hashes.map(h => Array.from(cachedVectors.get(h)!));
       upsertFileChunks(db, file.chunks, file.hashes, vectorsForFile, embeddingModel);
       upsertFileIndex(db, file.filePath, file.mtime);
-      
+
       totalFilesProcessed++;
       totalChunksCount += file.chunks.length;
     }
