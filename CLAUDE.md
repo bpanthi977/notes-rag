@@ -14,12 +14,15 @@ Building a local RAG (Retrieval-Augmented Generation) system over personal `.org
 │   ├── chunker.ts      # Parse .org files → paragraph chunks (with overlap)
 │   ├── embeddings.ts   # OpenRouter embedding API calls
 │   ├── store.ts        # SQLite: store/load chunks + embedding vectors
-│   └── rag.ts          # Top-k retrieval + LLM answer generation
+│   ├── rag.ts          # Top-k retrieval + LLM answer generation
+│   └── utils.ts        # Shared utilities (walkOrgFiles)
 ├── notes/              # User's .org files (created by user)
 ├── data/
 │   └── vector-store.db # SQLite database (auto-created)
 ├── docs/
-│   └── architecture.md # System overview doc
+│   ├── chunker.md      # Chunker design and interface
+│   ├── store.md        # Store design and interface (incremental indexing)
+│   └── architecture.md # System overview doc (TODO: task 07)
 ├── tsconfig.json
 └── package.json
 ```
@@ -35,3 +38,12 @@ Building a local RAG (Retrieval-Augmented Generation) system over personal `.org
   inside docs/tasks/ with numbered filename (e.g. 01 setup project.md)
 - Document architectural and design decisions inside docs/ and link
   those files in architecture section of CLAUDE.md
+  - For each part of the architecture, don't go into implementation details but rather
+	the ideas/appraoch of that part, and the interface (i.e. functions
+	and types that other piece of code will use to interact with that part)
+  - When you complete a task, update the documentation for the
+	relevant part if necessary.
+
+- When planning read the docs/ file before looking at the code because
+  it has the overall idea and the interface documentation need to make
+  plans.
