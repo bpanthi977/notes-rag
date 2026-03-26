@@ -1,8 +1,10 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { OpenRouter } from '@openrouter/sdk';
 import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
+import { walkOrgFiles } from './utils';
 import { query } from './rag_query';
 
 function resolveNotesDir(): string {
@@ -12,9 +14,10 @@ function resolveNotesDir(): string {
   return path.join(process.cwd(), 'notes');
 }
 
-function printStats(db: ReturnType<typeof initDB>): void {
-  const { chunkCount, embeddingCount } = getStats(db);
-  console.log(`${chunkCount} chunks, ${embeddingCount} embeddings indexed.`);
+function printStats(db: ReturnType<typeof initDB>, notesDir: string): void {
+  const { chunkCount, embeddingCount, indexedFileCount } = getStats(db);
+  const totalFiles = walkOrgFiles(notesDir).length;
+  console.log(`${indexedFileCount}/${totalFiles} files indexed, ${chunkCount} chunks, ${embeddingCount} embeddings.`);
 }
 
 async function main() {
@@ -25,10 +28,18 @@ async function main() {
   }
 
   const notesDir = resolveNotesDir();
+
+  if (!fs.existsSync(notesDir)) {
+    console.error(`Error: Notes directory not found: ${notesDir}`);
+    console.error('Set a notes directory by passing it as an argument: npx ts-node src/index.ts <notes-dir>');
+    process.exit(1);
+  }
+
   const db = initDB('data/vector-store.db');
   const client = new OpenRouter({ apiKey });
 
-  printStats(db);
+  console.log(`Notes: ${notesDir}`);
+  printStats(db, notesDir);
   console.log('Commands: :ingest | :quit');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -52,7 +63,7 @@ async function main() {
         console.log('Nothing to ingest.');
       } else {
         await ingestFiles(files, db, client);
-        printStats(db);
+        printStats(db, notesDir);
       }
       ask();
       return;

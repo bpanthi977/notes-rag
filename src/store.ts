@@ -149,8 +149,9 @@ export function getChunkById(db: Database.Database, id: number): Chunk | undefin
   };
 }
 
-export function getStats(db: Database.Database): { chunkCount: number; embeddingCount: number } {
+export function getStats(db: Database.Database): { chunkCount: number; embeddingCount: number; indexedFileCount: number } {
   const { count: chunkCount } = db.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number };
   const { count: embeddingCount } = db.prepare('SELECT COUNT(*) as count FROM embeddings').get() as { count: number };
-  return { chunkCount, embeddingCount };
+  const { count: indexedFileCount } = db.prepare('SELECT COUNT(*) as count FROM file_index').get() as { count: number };
+  return { chunkCount, embeddingCount, indexedFileCount };
 }
