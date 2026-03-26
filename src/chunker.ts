@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
+import { walkOrgFiles } from './utils';
 
 export interface Chunk {
   text: string;
@@ -8,9 +8,10 @@ export interface Chunk {
   chunkIndex: number;
 }
 
-const MAX_CHUNK_CHARS = 800;
-const WINDOW_SIZE = 800;
-const OVERLAP = 200;
+export interface ChunkConfig {
+  maxChunkChars?: number;  // default: 800
+  overlap?: number;        // default: 200
+}
 
 function parseHeadingLevel(line: string): number {
   const match = line.match(/^(\*+)\s/);
@@ -21,12 +22,12 @@ function buildHeadingContext(headings: string[]): string {
   return headings.join(' > ');
 }
 
-function splitWithOverlap(text: string): string[] {
+function splitWithOverlap(text: string, maxChunkChars: number, overlap: number): string[] {
   const chunks: string[] = [];
   let start = 0;
 
   while (start < text.length) {
-    let end = start + WINDOW_SIZE;
+    let end = start + maxChunkChars;
 
     if (end >= text.length) {
       chunks.push(text.slice(start));
@@ -39,11 +40,11 @@ function splitWithOverlap(text: string): string[] {
     }
     if (end === start) {
       // No word boundary found, hard cut
-      end = start + WINDOW_SIZE;
+      end = start + maxChunkChars;
     }
 
     chunks.push(text.slice(start, end));
-    start = end - OVERLAP;
+    start = end - overlap;
 
     // Move start forward past whitespace
     while (start < text.length && (text[start] === ' ' || text[start] === '\n')) {
@@ -54,7 +55,10 @@ function splitWithOverlap(text: string): string[] {
   return chunks;
 }
 
-export function chunkFile(filePath: string): Chunk[] {
+export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
+  const maxChunkChars = config.maxChunkChars ?? 800;
+  const overlap = config.overlap ?? 200;
+
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
@@ -63,12 +67,12 @@ export function chunkFile(filePath: string): Chunk[] {
 
   // headings[i] holds the current heading text at level (i+1)
   const headings: string[] = [];
-  let paragraphLines: string[] = [];
+  let currentLines: string[] = [];
+  let accumulatedText = '';
 
-  function flushParagraph() {
-    const text = paragraphLines.join('\n').trim();
-    paragraphLines = [];
-
+  function emitAccumulated() {
+    const text = accumulatedText.trim();
+    accumulatedText = '';
     if (!text) return;
 
     const headingContext = buildHeadingContext(headings);
@@ -82,51 +86,57 @@ export function chunkFile(filePath: string): Chunk[] {
       });
     }
 
-    if (text.length <= MAX_CHUNK_CHARS) {
+    if (text.length <= maxChunkChars) {
       emitChunk(text);
     } else {
-      const parts = splitWithOverlap(text);
+      const parts = splitWithOverlap(text, maxChunkChars, overlap);
       for (const part of parts) {
         emitChunk(part);
       }
     }
   }
 
+  function finishParagraph() {
+    const text = currentLines.join('\n').trim();
+    currentLines = [];
+    if (!text) return;
+
+    if (accumulatedText && (accumulatedText.length + 2 + text.length) > maxChunkChars) {
+      emitAccumulated();
+    }
+    accumulatedText = accumulatedText ? accumulatedText + '\n\n' + text : text;
+  }
+
+  let inProperties = false;
+
   for (const line of lines) {
+    if (line.trim() === ':PROPERTIES:') { inProperties = true; continue; }
+    if (inProperties) {
+      if (line.trim() === ':END:') inProperties = false;
+      continue;
+    }
+
     const level = parseHeadingLevel(line);
 
     if (level > 0) {
-      flushParagraph();
+      finishParagraph();
+      emitAccumulated();
       // Truncate heading stack to current level and set current heading
       headings.splice(level - 1);
       headings[level - 1] = line.trim();
     } else if (line.trim() === '') {
-      flushParagraph();
+      finishParagraph();
     } else {
-      paragraphLines.push(line);
+      currentLines.push(line);
     }
   }
 
-  flushParagraph();
+  finishParagraph();
+  emitAccumulated();
 
   return chunks;
 }
 
-export function chunkDirectory(dir: string): Chunk[] {
-  const allChunks: Chunk[] = [];
-
-  function walk(currentDir: string) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith('.org')) {
-        allChunks.push(...chunkFile(fullPath));
-      }
-    }
-  }
-
-  walk(dir);
-  return allChunks;
+export function chunkDirectory(dir: string, config: ChunkConfig = {}): Chunk[] {
+  return walkOrgFiles(dir).flatMap(filePath => chunkFile(filePath, config));
 }
