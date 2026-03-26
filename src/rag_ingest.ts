@@ -25,7 +25,10 @@ export interface IngestOptions {
   embeddingModel?: string; // default: "openai/text-embedding-3-small"
   maxFilesForChunks?: number; // max files to chunk at once (default: 50)
   maxChunksForEmbedding?: number; // max chunks per embed() API call (default: embed()'s own batch size)
-  onProgress?: (progress: IngestProgress) => void;
+  progressBarCreator?: (totalFiles: number) => {
+    update: (progress: IngestProgress) => void;
+    stop: () => void;
+  }
 }
 
 function computeHash(text: string): string {
@@ -77,7 +80,7 @@ export async function ingestFiles(
     embeddingModel = DEFAULT_EMBEDDING_MODEL,
     maxFilesForChunks = DEFAULT_MAX_FILES_FOR_CHUNKS,
     maxChunksForEmbedding = DEFAULT_MAX_CHUNKS_FOR_EMBEDDING,
-    onProgress,
+    progressBarCreator
   } = options;
   const filesTotal = filesToIndex.length;
 
@@ -85,6 +88,8 @@ export async function ingestFiles(
     console.log('No new or changed files to ingest.');
     return;
   }
+  const progressBar = progressBarCreator?.(filesToIndex.length);
+  const onProgress = progressBar?.update;
 
   let totalFilesProcessed = 0;
   let totalChunksCount = 0;
@@ -96,12 +101,14 @@ export async function ingestFiles(
     const fileData: { filePath: string; mtime: number; chunks: Chunk[]; hashes: string[] }[] = [];
     const allHashesInBatch = new Set<string>();
 
+    let count = 0;
     for (const { filePath, mtime } of batch) {
-      onProgress?.({ stage: 'chunking', filesDone: totalFilesProcessed, filesTotal, currentFile: filePath });
+      onProgress?.({ stage: 'chunking', filesDone: totalFilesProcessed + count, filesTotal, currentFile: filePath });
       const chunks = chunkFile(filePath);
       const hashes = chunks.map(c => computeHash(c.text));
       fileData.push({ filePath, mtime, chunks, hashes });
       hashes.forEach(h => allHashesInBatch.add(h));
+      count++;
     }
 
     const cachedVectors = getEmbeddingsByHashes(db, Array.from(allHashesInBatch));
@@ -139,7 +146,7 @@ export async function ingestFiles(
     }
 
     for (const file of fileData) {
-      onProgress?.({ stage: 'storing', filesDone: totalFilesProcessed, filesTotal, currentFile: file.filePath });
+      onProgress?.({ stage: 'storing', filesDone: totalFilesProcessed + 1, filesTotal, currentFile: file.filePath });
       const vectorsForFile: number[][] = file.hashes.map(h => Array.from(cachedVectors.get(h)!));
       upsertFileChunks(db, file.chunks, file.hashes, vectorsForFile, embeddingModel);
       upsertFileIndex(db, file.filePath, file.mtime);
@@ -150,6 +157,7 @@ export async function ingestFiles(
   }
 
   reusedEmbeddingsCount = totalChunksCount - newEmbeddingsCount;
+  progressBar?.stop();
 
   console.log(
     `Ingest summary: ${totalFilesProcessed} files, ${totalChunksCount} chunks (${reusedEmbeddingsCount} reused, ${newEmbeddingsCount} new embeddings)`

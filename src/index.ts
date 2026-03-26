@@ -6,7 +6,7 @@ import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
 import { walkOrgFiles } from './utils';
 import { query } from './rag_query';
-import { createSpinner } from './ui';
+import { createProgressReporter, createSpinner } from './ui';
 
 function resolveNotesDir(): string {
   if (process.argv[2]) return process.argv[2];
@@ -67,7 +67,10 @@ async function main() {
       if (files.length === 0) {
         console.log('Nothing to ingest.');
       } else {
-        await ingestFiles(files, db, client);
+
+        await ingestFiles(files, db, client, {
+	  progressBarCreator: createProgressReporter
+	});
         printStats(db, notesDir);
       }
       rl.prompt();
