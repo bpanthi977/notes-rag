@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { DEFAULT_MAX_CHARS_IN_CHUNK, DEFAULT_MIN_OVERLAP_FOR_CHUNK } from './constants';
 
 export interface Chunk {
   text: string;
@@ -55,8 +56,8 @@ function splitWithOverlap(text: string, maxChunkChars: number, overlap: number):
 }
 
 export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
-  const maxChunkChars = config.maxChunkChars ?? 800;
-  const overlap = config.overlap ?? 200;
+  const maxChunkChars = config.maxChunkChars ?? DEFAULT_MAX_CHARS_IN_CHUNK;
+  const overlap = config.overlap ?? DEFAULT_MIN_OVERLAP_FOR_CHUNK;
 
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
