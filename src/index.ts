@@ -5,7 +5,7 @@ import { OpenRouter } from '@openrouter/sdk';
 import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
 import { walkOrgFiles } from './utils';
-import { query, formatCitationNumbers } from './rag_query';
+import { query, formatCitationNumbers, ConversationTurn } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
 
 const recursive = process.argv.includes('--recursive');
@@ -47,6 +47,7 @@ async function main() {
   console.log(`Notes: ${notesDir}`);
   printStats(db, notesDir);
   console.log('Commands: :ingest | :quit');
+  const history: ConversationTurn[] = [];
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   rl.setPrompt('> ');
@@ -83,15 +84,20 @@ async function main() {
     if (line) {
       const spinner = createSpinner('Thinking...');
       try {
-        const result = await query(line, db, client);
+        const result = await query(line, db, client, {
+          history,
+          onStart: () => { spinner.stop(); process.stdout.write('\n'); },
+          onChunk: (chunk) => process.stdout.write(chunk),
+        });
         spinner.stop();
-        console.log(result.answer);
+        process.stdout.write('\n');
         if (result.citations.length > 0) {
           console.log('\nSources:');
           for (const { numbers, filePath } of result.citations) {
             console.log(`  ${formatCitationNumbers(numbers)} ${path.basename(filePath)}`);
           }
         }
+        history.push({ question: line, answer: result.answer });
       } catch (err) {
         spinner.stop();
         console.error('Error:', err instanceof Error ? err.message : err);

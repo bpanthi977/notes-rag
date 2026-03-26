@@ -15,10 +15,18 @@ export interface QueryResult {
   citations: Citation[];
 }
 
+export interface ConversationTurn {
+  question: string;
+  answer: string;
+}
+
 export interface QueryConfig {
   embeddingModel?: string;
   chatModel?: string;
   k?: number;
+  history?: ConversationTurn[];
+  onChunk?: (chunk: string) => void;
+  onStart?: () => void;
 }
 
 export function formatCitationNumbers(numbers: number[]): string {
@@ -117,19 +125,40 @@ export async function query(
     `${context}\n\nQuestion: ${question}`;
 
   // 7. Call LLM
-  const response = await client.chat.send({
-    chatGenerationParams: {
-      model: chatModel,
-      messages: [{ role: "user", content: prompt }],
-    },
-  });
+  const historyMessages = (config?.history ?? []).flatMap(turn => [
+    { role: "user" as const, content: turn.question },
+    { role: "assistant" as const, content: turn.answer },
+  ]);
+  const messages = [...historyMessages, { role: "user" as const, content: prompt }];
 
-  if (typeof response === "string") {
-    throw new Error(`Chat API returned unexpected string: ${response}`);
+  let answer: string;
+  const { onChunk, onStart } = config ?? {};
+
+  if (onChunk) {
+    const stream = await client.chat.send({
+      chatGenerationParams: { model: chatModel, messages, stream: true },
+    });
+    let started = false;
+    let fullAnswer = "";
+    for await (const chunk of stream) {
+      const text = chunk.choices?.[0]?.delta?.content ?? "";
+      if (text) {
+        if (!started) { onStart?.(); started = true; }
+        fullAnswer += text;
+        onChunk(text);
+      }
+    }
+    answer = fullAnswer;
+  } else {
+    const response = await client.chat.send({
+      chatGenerationParams: { model: chatModel, messages },
+    });
+    if (typeof response === "string") {
+      throw new Error(`Chat API returned unexpected string: ${response}`);
+    }
+    const content = (response as { choices: { message: { content?: string } }[] }).choices[0]?.message?.content;
+    answer = typeof content === "string" ? content : "";
   }
-
-  const content = (response as { choices: { message: { content?: string } }[] }).choices[0]?.message?.content;
-  const answer = typeof content === "string" ? content : "";
 
   // Parse cited numbers in order of first appearance
   const orderedCited: number[] = [];
