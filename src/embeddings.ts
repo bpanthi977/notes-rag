@@ -1,5 +1,5 @@
 import { OpenRouter } from "@openrouter/sdk";
-import { DEFAULT_EMBEDDING_MODEL } from "./constants";
+import { DEFAULT_EMBEDDING_CALL_BATCH_SIZE, DEFAULT_EMBEDDING_MODEL } from "./constants";
 
 export interface EmbedOptions {
   batchSize?: number;
@@ -11,7 +11,7 @@ export async function embed(
   client: OpenRouter,
   options?: EmbedOptions
 ): Promise<number[][]> {
-  const batchSize = options?.batchSize ?? 100;
+  const batchSize = options?.batchSize ?? DEFAULT_EMBEDDING_CALL_BATCH_SIZE;
   const model = options?.model ?? DEFAULT_EMBEDDING_MODEL;
   const results: number[][] = [];
 

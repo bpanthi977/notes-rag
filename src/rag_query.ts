@@ -3,7 +3,7 @@ import Database from "better-sqlite3";
 import { embed } from "./embeddings";
 import { getAllVectors, getChunkById } from "./store";
 import { Chunk } from "./chunker";
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_CHAT_MODEL } from "./constants";
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_CHAT_MODEL, DEFAULT_RAG_RETRIEVAL_K } from "./constants";
 
 export interface QueryConfig {
   embeddingModel?: string;
@@ -32,7 +32,7 @@ export async function query(
 ): Promise<string> {
   const embeddingModel = config?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
   const chatModel = config?.chatModel ?? DEFAULT_CHAT_MODEL;
-  const k = config?.k ?? 5;
+  const k = config?.k ?? DEFAULT_RAG_RETRIEVAL_K;
 
   // 1. Embed the question
   const [questionVector] = await embed([question], client, { model: embeddingModel });

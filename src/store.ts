@@ -115,6 +115,13 @@ export function upsertFileIndex(
   ).run(filePath, mtimeMs, Date.now());
 }
 
+export function deleteFile(db: Database.Database, filePath: string): void {
+  db.transaction(() => {
+    db.prepare('DELETE FROM chunks WHERE file_path = ?').run(filePath);
+    db.prepare('DELETE FROM file_index WHERE file_path = ?').run(filePath);
+  })();
+}
+
 export function getAllVectors(db: Database.Database): { chunkId: number; vector: Float32Array }[] {
   const rows = db.prepare('SELECT chunk_id, vector FROM embeddings').all() as
     { chunk_id: number; vector: Buffer }[];
