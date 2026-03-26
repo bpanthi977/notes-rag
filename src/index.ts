@@ -6,6 +6,7 @@ import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
 import { walkOrgFiles } from './utils';
 import { query } from './rag_query';
+import { createSpinner } from './ui';
 
 function resolveNotesDir(): string {
   if (process.argv[2]) return process.argv[2];
@@ -43,13 +44,15 @@ async function main() {
   console.log('Commands: :ingest | :quit');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  rl.setPrompt('> ');
+  rl.prompt();
 
   rl.on('close', () => {
     db.close();
     console.log('\nBye!');
   });
 
-  const ask = () => rl.question('> ', async (input) => {
+  rl.on('line', async (input) => {
     const line = input.trim();
 
     if (line === ':quit' || line === ':exit') {
@@ -65,20 +68,23 @@ async function main() {
         await ingestFiles(files, db, client);
         printStats(db, notesDir);
       }
-      ask();
+      rl.prompt();
       return;
     }
 
     if (line) {
+      const spinner = createSpinner('Thinking...');
       try {
-        const answer = await query(line, db, client);
-        console.log(answer);
+	const answer = await query(line, db, client);
+	spinner.stop();
+	console.log(answer);
       } catch (err) {
-        console.error('Error:', err instanceof Error ? err.message : err);
+	spinner.stop();
+	console.error('Error:', err instanceof Error ? err.message : err);
       }
     }
 
-    ask();
+    rl.prompt();
   });
 }
 

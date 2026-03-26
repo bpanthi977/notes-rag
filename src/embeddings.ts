@@ -4,6 +4,7 @@ import { DEFAULT_EMBEDDING_CALL_BATCH_SIZE, DEFAULT_EMBEDDING_MODEL } from "./co
 export interface EmbedOptions {
   batchSize?: number;
   model?: string;
+  onBatchDone?: (chunksEmbedded: number, totalChunks: number) => void;
 }
 
 export async function embed(
@@ -13,7 +14,9 @@ export async function embed(
 ): Promise<number[][]> {
   const batchSize = options?.batchSize ?? DEFAULT_EMBEDDING_CALL_BATCH_SIZE;
   const model = options?.model ?? DEFAULT_EMBEDDING_MODEL;
+  const { onBatchDone } = options ?? {};
   const results: number[][] = [];
+  let chunksEmbedded = 0;
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
@@ -31,6 +34,9 @@ export async function embed(
       }
       results.push(item.embedding);
     }
+
+    chunksEmbedded += batch.length;
+    onBatchDone?.(chunksEmbedded, texts.length);
   }
 
   return results;
