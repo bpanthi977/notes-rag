@@ -8,8 +8,11 @@ import { walkOrgFiles } from './utils';
 import { query, formatCitationNumbers } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
 
+const recursive = process.argv.includes('--recursive');
+
 function resolveNotesDir(): string {
-  if (process.argv[2]) return process.argv[2];
+  const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  if (args[0]) return args[0];
   const cwd = path.basename(process.cwd());
   if (cwd === 'notes' || cwd === 'Notes') return process.cwd();
   return path.join(process.cwd(), 'notes');
@@ -17,7 +20,7 @@ function resolveNotesDir(): string {
 
 function printStats(db: ReturnType<typeof initDB>, notesDir: string): void {
   const { chunkCount, embeddingCount, indexedFileCount } = getStats(db);
-  const totalFiles = walkOrgFiles(notesDir).length;
+  const totalFiles = walkOrgFiles(notesDir, recursive).length;
   console.log(`${indexedFileCount}/${totalFiles} files indexed, ${chunkCount} chunks, ${embeddingCount} embeddings.`);
 }
 
@@ -32,7 +35,7 @@ async function main() {
 
   if (!fs.existsSync(resolvedDir)) {
     console.error(`Error: Notes directory not found: ${resolvedDir}`);
-    console.error('Set a notes directory by passing it as an argument: npx ts-node src/index.ts <notes-dir>');
+    console.error('Usage: npx ts-node src/index.ts [--recursive] [<notes-dir>]');
     process.exit(1);
   }
 
@@ -63,7 +66,7 @@ async function main() {
     }
 
     if (line === ':ingest') {
-      const files = getFilesToIndex(notesDir, db);
+      const files = getFilesToIndex(notesDir, db, false, recursive);
       if (files.length === 0) {
         console.log('Nothing to ingest.');
       } else {

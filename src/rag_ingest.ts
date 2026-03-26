@@ -43,9 +43,10 @@ export interface FileInfo {
 export function getFilesToIndex(
   notesDir: string,
   db: Database.Database,
-  force: boolean = false // force = true bypasses mtime check
+  force: boolean = false, // force = true bypasses mtime check
+  recursive: boolean = false
 ): FileInfo[] {
-  const allCurrentPaths = walkOrgFiles(notesDir);
+  const allCurrentPaths = walkOrgFiles(notesDir, recursive);
   const trackedFiles = getFileIndex(db);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
 

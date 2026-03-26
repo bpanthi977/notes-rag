@@ -34,15 +34,16 @@ Processing is done in batches (default 50 files) to balance memory usage and API
 
 ## Interface
 
-### `getFilesToIndex(notesDir, db, force?): FileInfo[]`
+### `getFilesToIndex(notesDir, db, force?, recursive?): FileInfo[]`
 
 Scans the notes directory, removes stale (deleted) files from the DB, and returns the list of files that need (re-)indexing.
 
 ```ts
 interface FileInfo { filePath: string; mtime: number }
 
-getFilesToIndex(notesDir: string, db: Database, force?: boolean): FileInfo[]
+getFilesToIndex(notesDir: string, db: Database, force?: boolean, recursive?: boolean): FileInfo[]
 // force=true bypasses mtime check and returns all files
+// recursive=true walks subdirectories (default: false, top-level only)
 ```
 
 ### `ingestFiles(filesToIndex, db, client, options?): Promise<void>`
