@@ -14,6 +14,8 @@ On startup, opens the SQLite DB, prints current stats, and enters a readline loo
   2. Current working directory, if its name is `notes` or `Notes`
   3. `./notes` relative to the current working directory
 
+  The resolved path is canonicalized via `fs.realpathSync()` (symlinks resolved) before use, so the CLI can be invoked from any directory and file paths stored in the DB remain consistent.
+
 ## Commands
 
 | Input | Behavior |

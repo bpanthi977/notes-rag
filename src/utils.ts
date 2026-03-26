@@ -11,7 +11,7 @@ export function walkOrgFiles(dir: string): string[] {
       if (entry.isDirectory()) {
         walk(fullPath);
       } else if (entry.isFile() && entry.name.endsWith('.org')) {
-        files.push(fullPath);
+        files.push(fs.realpathSync(fullPath));
       }
     }
   }

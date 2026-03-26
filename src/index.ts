@@ -28,13 +28,15 @@ async function main() {
     process.exit(1);
   }
 
-  const notesDir = resolveNotesDir();
+  const resolvedDir = resolveNotesDir();
 
-  if (!fs.existsSync(notesDir)) {
-    console.error(`Error: Notes directory not found: ${notesDir}`);
+  if (!fs.existsSync(resolvedDir)) {
+    console.error(`Error: Notes directory not found: ${resolvedDir}`);
     console.error('Set a notes directory by passing it as an argument: npx ts-node src/index.ts <notes-dir>');
     process.exit(1);
   }
+
+  const notesDir = fs.realpathSync(resolvedDir);
 
   const db = initDB('data/vector-store.db');
   const client = new OpenRouter({ apiKey });
