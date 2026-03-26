@@ -1,9 +1,10 @@
 import { OpenRouter } from "@openrouter/sdk";
 
-const MODEL = "openai/text-embedding-3-small";
+const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
 export interface EmbedOptions {
   batchSize?: number;
+  model?: string;
 }
 
 export async function embed(
@@ -12,12 +13,13 @@ export async function embed(
   options?: EmbedOptions
 ): Promise<number[][]> {
   const batchSize = options?.batchSize ?? 100;
+  const model = options?.model ?? DEFAULT_EMBEDDING_MODEL;
   const results: number[][] = [];
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
     const response = await client.embeddings.generate({
-      requestBody: { model: MODEL, input: batch },
+      requestBody: { model, input: batch },
     });
 
     if (typeof response === "string") {
