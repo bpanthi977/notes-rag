@@ -87,7 +87,7 @@ async function main() {
         const result = await query(line, db, client, {
           history,
           onStart: () => { spinner.stop(); process.stdout.write('\n'); },
-          onChunk: (chunk) => process.stdout.write(chunk),
+          onChunk: (chunk) => process.stdout.write(chunk.replace(/\r/g, '')),
         });
         spinner.stop();
         process.stdout.write('\n');

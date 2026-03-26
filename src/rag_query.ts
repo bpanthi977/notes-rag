@@ -119,9 +119,8 @@ export async function query(
   const context = numberedChunks
     .map((c, i) => `[${i + 1}]\n${c.text}`)
     .join("\n---\n");
-  const prompt =
-    `Answer the question using only the notes provided below. ` +
-    `Cite source chunk numbers inline (e.g. [1], [2]).\n\n` +
+  const prompt = `Answer the question using only the notes provided below or the conversation history above (if it exits). ` +
+    `Cite note chunk numbers inline (e.g. [1], [2]) when referencing them.\n\n` +
     `${context}\n\nQuestion: ${question}`;
 
   // 7. Call LLM
@@ -143,9 +142,9 @@ export async function query(
     for await (const chunk of stream) {
       const text = chunk.choices?.[0]?.delta?.content ?? "";
       if (text) {
-        if (!started) { onStart?.(); started = true; }
-        fullAnswer += text;
-        onChunk(text);
+	if (!started) { onStart?.(); started = true; }
+	fullAnswer += text;
+	onChunk(text);
       }
     }
     answer = fullAnswer;
