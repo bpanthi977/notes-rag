@@ -5,7 +5,7 @@ import { OpenRouter } from '@openrouter/sdk';
 import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
 import { walkOrgFiles } from './utils';
-import { query } from './rag_query';
+import { query, formatCitationNumbers } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
 
 function resolveNotesDir(): string {
@@ -80,12 +80,18 @@ async function main() {
     if (line) {
       const spinner = createSpinner('Thinking...');
       try {
-	const answer = await query(line, db, client);
-	spinner.stop();
-	console.log(answer);
+        const result = await query(line, db, client);
+        spinner.stop();
+        console.log(result.answer);
+        if (result.citations.length > 0) {
+          console.log('\nSources:');
+          for (const { numbers, filePath } of result.citations) {
+            console.log(`  ${formatCitationNumbers(numbers)} ${path.basename(filePath)}`);
+          }
+        }
       } catch (err) {
-	spinner.stop();
-	console.error('Error:', err instanceof Error ? err.message : err);
+        spinner.stop();
+        console.error('Error:', err instanceof Error ? err.message : err);
       }
     }
 
