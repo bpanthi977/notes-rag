@@ -24,6 +24,7 @@ Building a local RAG (Retrieval-Augmented Generation) system over personal `.org
 │   ├── chunker.md      # Chunker design and interface
 │   ├── store.md        # Store design and interface (incremental indexing)
 │   ├── rag_ingest.md   # Ingest design and interface (incremental indexing)
+│   ├── rag_query.md    # Query design and interface (retrieval + LLM)
 │   └── architecture.md # System overview doc (TODO: task 07)
 ├── tsconfig.json
 └── package.json
