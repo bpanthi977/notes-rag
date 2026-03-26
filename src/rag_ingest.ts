@@ -12,7 +12,7 @@ import {
 } from './store';
 import { chunkFile, Chunk } from './chunker';
 import { embed } from './embeddings';
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_MAX_FILES_FOR_CHUNKS } from './constants';
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_MAX_FILES_FOR_CHUNKS, DEFAULT_MAX_CHUNKS_FOR_EMBEDDING } from './constants';
 
 export interface IngestOptions {
   force?: boolean; // force=true bypasses mtime check
@@ -65,10 +65,10 @@ export async function ingest(
     force = false,
     embeddingModel = DEFAULT_EMBEDDING_MODEL,
     maxFilesForChunks = DEFAULT_MAX_FILES_FOR_CHUNKS,
-    maxChunksForEmbedding,
+    maxChunksForEmbedding = DEFAULT_MAX_CHUNKS_FOR_EMBEDDING,
   } = options;
 
-  const filesToIndex = await getFilesToIndex(notesDir, db, { force });
+  const filesToIndex = getFilesToIndex(notesDir, db, { force });
 
   if (filesToIndex.length === 0) {
     console.log('No new or changed files to ingest.');
@@ -125,12 +125,9 @@ export async function ingest(
       
       totalFilesProcessed++;
       totalChunksCount += file.chunks.length;
-      reusedEmbeddingsCount += file.chunks.length - file.chunks.filter((_, idx) => chunksToEmbed.some(cte => cte.hash === file.hashes[idx])).length;
     }
   }
 
-  // The reused count logic above is a bit complex due to de-duplication across files. 
-  // Let's refine the count for the summary.
   reusedEmbeddingsCount = totalChunksCount - newEmbeddingsCount;
 
   console.log(
