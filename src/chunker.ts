@@ -22,7 +22,7 @@ function buildHeadingContext(headings: string[]): string {
   return headings.join(' > ');
 }
 
-function splitWithOverlap(text: string, maxChunkChars: number, overlap: number): string[] {
+export function splitWithOverlap(text: string, maxChunkChars: number, overlap: number): string[] {
   const chunks: string[] = [];
   let start = 0;
 
@@ -43,8 +43,16 @@ function splitWithOverlap(text: string, maxChunkChars: number, overlap: number):
       end = start + maxChunkChars;
     }
 
+    const prevStart = start;
     chunks.push(text.slice(start, end));
     start = end - overlap;
+
+    // Guarantee forward progress: if overlap >= (end - prevStart), start would
+    // not advance past prevStart, causing an infinite loop (e.g. a long URL
+    // with no spaces keeps the word-boundary at the same position each iteration).
+    if (start <= prevStart) {
+      start = end;
+    }
 
     // Move start forward past whitespace
     while (start < text.length && (text[start] === ' ' || text[start] === '\n')) {
