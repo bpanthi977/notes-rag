@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { walkOrgFiles } from './utils';
 
 export interface Chunk {
   text: string;
@@ -135,8 +134,4 @@ export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
   emitAccumulated();
 
   return chunks;
-}
-
-export function chunkDirectory(dir: string, config: ChunkConfig = {}): Chunk[] {
-  return walkOrgFiles(dir).flatMap(filePath => chunkFile(filePath, config));
 }

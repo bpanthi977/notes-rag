@@ -41,7 +41,3 @@ Both fields are optional. Omitting the config entirely uses the defaults.
 ### `chunkFile(filePath: string, config?: ChunkConfig): Chunk[]`
 
 Parses a single `.org` file and returns all chunks in order.
-
-### `chunkDirectory(dir: string, config?: ChunkConfig): Chunk[]`
-
-Recursively walks a directory, calling `chunkFile` on every `.org` file found, and returns all chunks concatenated. The same `config` is applied to every file.
