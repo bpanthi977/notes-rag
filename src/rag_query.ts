@@ -3,9 +3,7 @@ import Database from "better-sqlite3";
 import { embed } from "./embeddings";
 import { getAllVectors, getChunkById } from "./store";
 import { Chunk } from "./chunker";
-
-const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
-const DEFAULT_CHAT_MODEL = "anthropic/claude-3.5-haiku";
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_CHAT_MODEL } from "./constants";
 
 export interface QueryConfig {
   embeddingModel?: string;

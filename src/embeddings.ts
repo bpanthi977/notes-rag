@@ -1,6 +1,5 @@
 import { OpenRouter } from "@openrouter/sdk";
-
-const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+import { DEFAULT_EMBEDDING_MODEL } from "./constants";
 
 export interface EmbedOptions {
   batchSize?: number;
