@@ -129,8 +129,8 @@ export async function query(
     { role: "user" as const, content: turn.question },
     { role: "assistant" as const, content: turn.answer },
   ]);
-  const messages = [...historyMessages, { role: "user" as const, content: prompt }];
 
+  const messages = [{role: "system" as const, content: "Your are personalized knowledge base assistant. Answer the last question asked based on the notes provided."}, ...historyMessages, { role: "user" as const, content: prompt }];
   let answer: string;
   const { onChunk, onStart } = config ?? {};
 
@@ -163,13 +163,15 @@ export async function query(
   // Parse cited numbers in order of first appearance
   const orderedCited: number[] = [];
   const seen = new Set<number>();
-  const citationRegex = /\[(\d+)\]/g;
+  const citationRegex = /\[(\d+(?:,\s*\d+)*)\]/g;
   let match;
   while ((match = citationRegex.exec(answer)) !== null) {
-    const n = parseInt(match[1], 10);
-    if (n >= 1 && n <= numberedChunks.length && !seen.has(n)) {
-      orderedCited.push(n);
-      seen.add(n);
+    for (const part of match[1].split(',')) {
+      const n = parseInt(part.trim(), 10);
+      if (n >= 1 && n <= numberedChunks.length && !seen.has(n)) {
+        orderedCited.push(n);
+        seen.add(n);
+      }
     }
   }
 
