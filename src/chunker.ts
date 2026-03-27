@@ -84,6 +84,8 @@ export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
     if (!text) return;
 
     const headingContext = buildHeadingContext(headings);
+    const headingPrefix = headingContext ? headingContext.length + 1 : 0; // +1 for '\n'
+    const effectiveMax = maxChunkChars - headingPrefix;
 
     function emitChunk(chunkText: string) {
       chunks.push({
@@ -94,10 +96,10 @@ export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
       });
     }
 
-    if (text.length <= maxChunkChars) {
+    if (text.length <= effectiveMax) {
       emitChunk(text);
     } else {
-      const parts = splitWithOverlap(text, maxChunkChars, overlap);
+      const parts = splitWithOverlap(text, effectiveMax, overlap);
       for (const part of parts) {
         emitChunk(part);
       }
@@ -109,7 +111,9 @@ export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
     currentLines = [];
     if (!text) return;
 
-    if (accumulatedText && (accumulatedText.length + 2 + text.length) > maxChunkChars) {
+    const headingCtxLen = buildHeadingContext(headings).length;
+    const effectiveMax = maxChunkChars - (headingCtxLen > 0 ? headingCtxLen + 1 : 0);
+    if (accumulatedText && (accumulatedText.length + 2 + text.length) > effectiveMax) {
       emitAccumulated();
     }
     accumulatedText = accumulatedText ? accumulatedText + '\n\n' + text : text;
