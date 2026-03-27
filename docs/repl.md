@@ -26,6 +26,13 @@ On startup, opens the SQLite DB, prints current stats, and enters a readline loo
 | `:quit` / `:exit` / Ctrl-C | Close DB and exit |
 | anything else | Call `query()`, print the answer |
 
+## UI
+
+Feedback is provided via two elements implemented in `src/ui.ts`:
+
+- **Spinner** — animates during query processing. Stops before streaming the LLM response so chunks are not corrupted.
+- **Progress bar** — shown during `:ingest`. Displays a 30-char `#`/`.` bar, current file count, active stage (`chunking` → `embedding` → `storing`), and current filename.
+
 ## Example session
 
 ```
