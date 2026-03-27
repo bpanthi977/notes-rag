@@ -83,13 +83,17 @@ async function main() {
 
     if (line) {
       const spinner = createSpinner('Thinking...');
+      let spinnerStopped = false;
+      const stopSpinner = () => {
+        if (!spinnerStopped) { spinnerStopped = true; spinner.stop(); }
+      };
       try {
         const result = await query(line, db, client, {
           history,
-          onStart: () => { spinner.stop(); process.stdout.write('\n'); },
+          onStart: () => { stopSpinner(); process.stdout.write('\n'); },
           onChunk: (chunk) => process.stdout.write(chunk.replace(/\r/g, '')),
         });
-        spinner.stop();
+        stopSpinner();
         process.stdout.write('\n');
         if (result.citations.length > 0) {
           console.log('\nSources:');
@@ -99,7 +103,7 @@ async function main() {
         }
         history.push({ question: line, answer: result.answer });
       } catch (err) {
-        spinner.stop();
+        stopSpinner();
         console.error('Error:', err instanceof Error ? err.message : err);
       }
     }
