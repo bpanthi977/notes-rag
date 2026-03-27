@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as readline from 'readline';
 import { OpenRouter } from '@openrouter/sdk';
@@ -43,7 +44,7 @@ async function main() {
 
   const notesDir = fs.realpathSync(resolvedDir);
 
-  const db = initDB('data/vector-store.db');
+  const db = initDB(path.join(os.homedir(), '.cache/notes-rag/vector-store.db'));
   const client = new OpenRouter({ apiKey });
 
   console.log(`Notes: ${notesDir}`);
