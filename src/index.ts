@@ -48,7 +48,7 @@ async function main() {
 
   console.log(`Notes: ${notesDir}`);
   printStats(db, notesDir);
-  console.log('Commands: :ingest | :quit');
+  console.log('Commands: :ingest | :clear | :quit');
   const history: ConversationTurn[] = [];
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -79,6 +79,16 @@ async function main() {
 	});
         printStats(db, notesDir);
       }
+      rl.prompt();
+      return;
+    }
+
+    if (line === ':clear') {
+      history.length = 0;
+      console.clear();
+      console.log(`Notes: ${notesDir}`);
+      printStats(db, notesDir);
+      console.log('Commands: :ingest | :clear | :quit');
       rl.prompt();
       return;
     }

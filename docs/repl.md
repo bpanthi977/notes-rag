@@ -23,6 +23,7 @@ On startup, opens the SQLite DB, prints current stats, and enters a readline loo
 | Input | Behavior |
 |-------|----------|
 | `:ingest` | Run `getFilesToIndex` + `ingestFiles`, print updated stats |
+| `:clear` | Clear terminal, reset conversation history, re-display headline |
 | `:quit` / `:exit` / Ctrl-C | Close DB and exit |
 | anything else | Call `query()`, print the answer |
 
