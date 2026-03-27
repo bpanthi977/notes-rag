@@ -8,6 +8,7 @@ import { DEFAULT_EMBEDDING_MODEL, DEFAULT_CHAT_MODEL, DEFAULT_RAG_RETRIEVAL_K } 
 export interface Citation {
   numbers: number[];   // citation numbers from the answer pointing to this file
   filePath: string;
+  chunks: Array<{ number: number; text: string }>;
 }
 
 export interface QueryResult {
@@ -184,10 +185,14 @@ export async function query(
     fileNumbers.get(fp)!.push(n);
   }
 
-  const citations: Citation[] = fileOrder.map(fp => ({
-    filePath: fp,
-    numbers: fileNumbers.get(fp)!,
-  }));
+  const citations: Citation[] = fileOrder.map(fp => {
+    const nums = fileNumbers.get(fp)!;
+    return {
+      filePath: fp,
+      numbers: nums,
+      chunks: nums.map(n => ({ number: n, text: numberedChunks[n - 1].text })),
+    };
+  });
 
   return { answer, citations };
 }

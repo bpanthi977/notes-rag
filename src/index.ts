@@ -6,7 +6,7 @@ import { OpenRouter } from '@openrouter/sdk';
 import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
 import { walkOrgFiles } from './utils';
-import { query, formatCitationNumbers, ConversationTurn } from './rag_query';
+import { query, formatCitationNumbers, ConversationTurn, Citation } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
 
 const recursive = process.argv.includes('--recursive');
@@ -49,8 +49,9 @@ async function main() {
 
   console.log(`Notes: ${notesDir}`);
   printStats(db, notesDir);
-  console.log('Commands: :ingest | :clear | :quit');
+  console.log('Commands: :ingest | :clear | :sources | :quit');
   const history: ConversationTurn[] = [];
+  let lastCitations: Citation[] = [];
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   rl.setPrompt('> ');
@@ -86,10 +87,26 @@ async function main() {
 
     if (line === ':clear') {
       history.length = 0;
+      lastCitations = [];
       console.clear();
       console.log(`Notes: ${notesDir}`);
       printStats(db, notesDir);
-      console.log('Commands: :ingest | :clear | :quit');
+      console.log('Commands: :ingest | :clear | :sources | :quit');
+      rl.prompt();
+      return;
+    }
+
+    if (line === ':sources') {
+      if (lastCitations.length === 0) {
+        console.log('No sources from previous answer.');
+      } else {
+        for (const { numbers, filePath, chunks } of lastCitations) {
+          console.log(`\n${formatCitationNumbers(numbers)} ${path.basename(filePath)}`);
+          for (const { number, text } of chunks) {
+            console.log(`\n[${number}]\n${text}`);
+          }
+        }
+      }
       rl.prompt();
       return;
     }
@@ -108,6 +125,7 @@ async function main() {
         });
         stopSpinner();
         process.stdout.write('\n');
+        lastCitations = result.citations;
         if (result.citations.length > 0) {
           console.log('\nSources:');
           for (const { numbers, filePath } of result.citations) {
