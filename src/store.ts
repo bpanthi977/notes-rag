@@ -99,9 +99,10 @@ export function getEmbeddingsByHashes(
   return result;
 }
 
-export function getFileIndex(db: Database.Database): Map<string, number> {
-  const rows = db.prepare('SELECT file_path, mtime_ms FROM file_index').all() as
-    { file_path: string; mtime_ms: number }[];
+export function getFileIndex(db: Database.Database, notesDir?: string): Map<string, number> {
+  const glob = notesDir ? notesDir + '/*' : '*';
+  const rows = db.prepare('SELECT file_path, mtime_ms FROM file_index WHERE file_path GLOB ?').all(glob) as
+        { file_path: string; mtime_ms: number }[];
   return new Map(rows.map(r => [r.file_path, r.mtime_ms]));
 }
 
@@ -149,9 +150,17 @@ export function getChunkById(db: Database.Database, id: number): Chunk | undefin
   };
 }
 
-export function getStats(db: Database.Database): { chunkCount: number; embeddingCount: number; indexedFileCount: number } {
-  const { count: chunkCount } = db.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number };
-  const { count: embeddingCount } = db.prepare('SELECT COUNT(*) as count FROM embeddings').get() as { count: number };
-  const { count: indexedFileCount } = db.prepare('SELECT COUNT(*) as count FROM file_index').get() as { count: number };
-  return { chunkCount, embeddingCount, indexedFileCount };
+export function getStats(db: Database.Database, notesDir?: string): { chunkCount: number; embeddingCount: number; indexedFileCount: number } {
+  const glob = notesDir ? notesDir + '/*' : '*';
+  const row = db.prepare(`
+    SELECT
+      COUNT(DISTINCT fi.file_path) AS indexedFileCount,
+      COUNT(DISTINCT c.id)        AS chunkCount,
+      COUNT(DISTINCT e.chunk_id)  AS embeddingCount
+    FROM file_index fi
+    LEFT JOIN chunks c ON c.file_path = fi.file_path
+    LEFT JOIN embeddings e ON e.chunk_id = c.id
+    WHERE fi.file_path GLOB ?
+  `).get(glob) as { chunkCount: number; embeddingCount: number; indexedFileCount: number };
+  return row;
 }

@@ -19,9 +19,11 @@ function resolveNotesDir(): string {
 }
 
 function printStats(db: ReturnType<typeof initDB>, notesDir: string): void {
-  const { chunkCount, embeddingCount, indexedFileCount } = getStats(db);
+  const { chunkCount, embeddingCount, indexedFileCount } = getStats(db, notesDir);
   const totalFiles = walkOrgFiles(notesDir, recursive).length;
-  console.log(`${indexedFileCount}/${totalFiles} files indexed, ${chunkCount} chunks, ${embeddingCount} embeddings.`);
+  const staleCount = getFilesToIndex(notesDir, db, false, recursive).length;
+  const staleStr = staleCount > 0 ? ` (${staleCount} stale)` : '';
+  console.log(`${indexedFileCount}/${totalFiles} files indexed${staleStr}, ${chunkCount} chunks, ${embeddingCount} embeddings.`);
 }
 
 async function main() {

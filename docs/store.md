@@ -38,9 +38,9 @@ Deletes all existing rows for `chunks[0].filePath`, then inserts the new chunks 
 
 Returns a map of `content_hash → vector` for any hashes that already have an embedding in the database. Used to reuse vectors for unchanged chunks before old rows are deleted.
 
-### `getFileIndex(db): Map<string, number>`
+### `getFileIndex(db, notesDir?: string): Map<string, number>`
 
-Returns a map of `filePath → mtime_ms` for all files currently tracked in `file_index`.
+Returns a map of `filePath → mtime_ms` for files tracked in `file_index`. If `notesDir` is provided, only files whose path matches `notesDir/*` (SQL GLOB) are returned.
 
 ### `upsertFileIndex(db, filePath: string, mtimeMs: number): void`
 
@@ -54,6 +54,6 @@ Returns all stored vectors with their chunk IDs. Used by the retrieval pipeline 
 
 Fetches a single chunk by its primary key. Used to load chunk text after top-k retrieval.
 
-### `getStats(db): { chunkCount: number; embeddingCount: number }`
+### `getStats(db, notesDir?: string): { chunkCount: number; embeddingCount: number; indexedFileCount: number }`
 
-Returns row counts for quick diagnostics.
+Returns counts of indexed files, chunks, and embeddings in a single query. If `notesDir` is provided, all three counts are scoped to files matching `notesDir/*`.

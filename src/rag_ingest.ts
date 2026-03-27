@@ -47,7 +47,7 @@ export function getFilesToIndex(
   recursive: boolean = false
 ): FileInfo[] {
   const allCurrentPaths = walkOrgFiles(notesDir, recursive);
-  const trackedFiles = getFileIndex(db);
+  const trackedFiles = getFileIndex(db, notesDir);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
 
   const currentPathsSet = new Set(allCurrentPaths);
