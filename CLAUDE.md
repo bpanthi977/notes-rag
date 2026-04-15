@@ -17,9 +17,6 @@ Building a local RAG (Retrieval-Augmented Generation) system over personal `.org
 │   ├── rag_ingest.ts   # Ingest org notes into the vector store (incremental)
 │   ├── rag_query.ts    # Top-k retrieval + LLM answer generation
 │   └── utils.ts        # Shared utilities (walkOrgFiles)
-├── notes/              # User's .org files (created by user)
-├── data/
-│   └── vector-store.db # SQLite database (auto-created)
 ├── docs/
 │   ├── chunker.md      # Chunker design and interface
 │   ├── store.md        # Store design and interface (incremental indexing)
