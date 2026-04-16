@@ -1,4 +1,6 @@
 import * as fs from 'fs';
+import * as path from 'path';
+import { PDFParse } from 'pdf-parse';
 import { DEFAULT_MAX_CHARS_IN_CHUNK, DEFAULT_MIN_OVERLAP_FOR_CHUNK } from './constants';
 
 export interface Chunk {
@@ -63,7 +65,7 @@ export function splitWithOverlap(text: string, maxChunkChars: number, overlap: n
   return chunks;
 }
 
-export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
+function chunkOrgFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
   const maxChunkChars = config.maxChunkChars ?? DEFAULT_MAX_CHARS_IN_CHUNK;
   const overlap = config.overlap ?? DEFAULT_MIN_OVERLAP_FOR_CHUNK;
 
@@ -147,4 +149,56 @@ export function chunkFile(filePath: string, config: ChunkConfig = {}): Chunk[] {
   emitAccumulated();
 
   return chunks;
+}
+
+async function chunkPdfFile(filePath: string, config: ChunkConfig = {}): Promise<Chunk[]> {
+  const maxChunkChars = config.maxChunkChars ?? DEFAULT_MAX_CHARS_IN_CHUNK;
+  const overlap = config.overlap ?? DEFAULT_MIN_OVERLAP_FOR_CHUNK;
+
+  const buffer = fs.readFileSync(filePath);
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  const result = await parser.getText();
+  await parser.destroy();
+  const fullText = result.text;
+
+  const chunks: Chunk[] = [];
+  let chunkIndex = 0;
+  let accumulatedText = '';
+
+  function emitAccumulated() {
+    const text = accumulatedText.trim();
+    accumulatedText = '';
+    if (!text) return;
+
+    if (text.length <= maxChunkChars) {
+      chunks.push({ text, headingContext: '', filePath, chunkIndex: chunkIndex++ });
+    } else {
+      const parts = splitWithOverlap(text, maxChunkChars, overlap);
+      for (const part of parts) {
+        chunks.push({ text: part, headingContext: '', filePath, chunkIndex: chunkIndex++ });
+      }
+    }
+  }
+
+  // Split by paragraph breaks (double newlines), merge until maxChunkChars
+  const paragraphs = fullText.split(/\n{2,}/);
+  for (const para of paragraphs) {
+    const text = para.trim();
+    if (!text) continue;
+
+    if (accumulatedText && (accumulatedText.length + 2 + text.length) > maxChunkChars) {
+      emitAccumulated();
+    }
+    accumulatedText = accumulatedText ? accumulatedText + '\n\n' + text : text;
+  }
+  emitAccumulated();
+
+  return chunks;
+}
+
+export async function chunkFile(filePath: string, config: ChunkConfig = {}): Promise<Chunk[]> {
+  if (path.extname(filePath).toLowerCase() === '.pdf') {
+    return chunkPdfFile(filePath, config);
+  }
+  return chunkOrgFile(filePath, config);
 }

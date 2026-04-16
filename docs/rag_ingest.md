@@ -1,6 +1,6 @@
 # RAG Ingest
 
-Incremental ingestion of `.org` notes into the vector store.
+Incremental ingestion of `.org` and `.pdf` notes into the vector store.
 
 ## Approach
 
@@ -8,7 +8,7 @@ Incremental ingestion of `.org` notes into the vector store.
 
 The ingestion process skips files that haven't changed since the last run. It uses the `file_index` table to track the `mtime_ms` (last-modified timestamp) of each file. 
 
-1. Discovery: Walk the notes directory to find all `.org` files.
+1. Discovery: Walk the notes directory to find all `.org` and `.pdf` files.
 2. Cleanup: Compare found files against the database (scoped to `notesDir` via `getFileIndex`). If a file within `notesDir` is in the database but no longer on disk, it is deleted from both `chunks` and `file_index` tables. Files indexed from other directories are not affected.
 3. Change Detection: For each file on disk, check if its current `mtime_ms` differs from the one stored in `file_index`. If it's new or modified (or if `force` is true), it is marked for processing.
 

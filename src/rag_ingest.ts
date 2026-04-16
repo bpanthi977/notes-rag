@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import Database from 'better-sqlite3';
 import { OpenRouter } from '@openrouter/sdk';
-import { walkOrgFiles } from './utils';
+import { walkFiles } from './utils';
 import {
   getFileIndex,
   getEmbeddingsByHashes,
@@ -46,7 +46,7 @@ export function getFilesToIndex(
   force: boolean = false, // force = true bypasses mtime check
   recursive: boolean = false
 ): FileInfo[] {
-  const allCurrentPaths = walkOrgFiles(notesDir, recursive);
+  const allCurrentPaths = walkFiles(notesDir, ['.org', '.pdf'], recursive);
   const trackedFiles = getFileIndex(db, notesDir);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
 
@@ -105,7 +105,7 @@ export async function ingestFiles(
     let count = 0;
     for (const { filePath, mtime } of batch) {
       onProgress?.({ stage: 'chunking', filesDone: totalFilesProcessed + count, filesTotal, currentFile: filePath });
-      const chunks = chunkFile(filePath);
+      const chunks = await chunkFile(filePath);
       const hashes = chunks.map(c => computeHash(c.text));
       fileData.push({ filePath, mtime, chunks, hashes });
       hashes.forEach(h => allHashesInBatch.add(h));

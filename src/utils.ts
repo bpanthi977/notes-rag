@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-export function walkOrgFiles(dir: string, recursive = false): string[] {
+export function walkFiles(dir: string, extensions: string[], recursive = false): string[] {
   const files: string[] = [];
 
   function walk(currentDir: string) {
@@ -10,7 +10,7 @@ export function walkOrgFiles(dir: string, recursive = false): string[] {
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory() && recursive) {
         walk(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith('.org')) {
+      } else if (entry.isFile() && extensions.includes(path.extname(entry.name).toLowerCase())) {
         files.push(fs.realpathSync(fullPath));
       }
     }
@@ -18,4 +18,8 @@ export function walkOrgFiles(dir: string, recursive = false): string[] {
 
   walk(dir);
   return files;
+}
+
+export function walkOrgFiles(dir: string, recursive = false): string[] {
+  return walkFiles(dir, ['.org'], recursive);
 }
