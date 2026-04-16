@@ -23,6 +23,7 @@ export interface ConversationTurn {
 
 export interface QueryConfig {
   k?: number;
+  allowedFilePaths?: Set<string>;
   history?: ConversationTurn[];
   onChunk?: (chunk: string) => void;
   onStart?: () => void;
@@ -71,8 +72,10 @@ export async function query(
   const [questionVector] = await embed([question], embeddingClient);
   const qVec = new Float32Array(questionVector);
 
-  // 2. Score all stored vectors
-  const allVectors = getAllVectors(db, embeddingModel);
+  // 2. Score all stored vectors (filtered to allowed files if specified)
+  const { allowedFilePaths } = config ?? {};
+  const allVectors = getAllVectors(db, embeddingModel)
+    .filter(v => !allowedFilePaths || allowedFilePaths.has(v.filePath));
   const scored = allVectors.map(({ chunkId, vector }) => ({
     chunkId,
     score: cosineSimilarity(qVec, vector),

@@ -146,11 +146,16 @@ export function deleteFile(db: Database.Database, filePath: string): void {
   })();
 }
 
-export function getAllVectors(db: Database.Database, embeddingModel: string): { chunkId: number; vector: Float32Array }[] {
-  const rows = db.prepare('SELECT chunk_id, vector FROM embeddings WHERE model = ?').all([embeddingModel]) as
-    { chunk_id: number; vector: Buffer }[];
+export function getAllVectors(db: Database.Database, embeddingModel: string): { chunkId: number; vector: Float32Array; filePath: string }[] {
+  const rows = db.prepare(`
+    SELECT e.chunk_id, e.vector, c.file_path
+    FROM embeddings e
+    JOIN chunks c ON c.id = e.chunk_id
+    WHERE e.model = ?
+  `).all(embeddingModel) as { chunk_id: number; vector: Buffer; file_path: string }[];
   return rows.map(row => ({
     chunkId: row.chunk_id,
+    filePath: row.file_path,
     vector: new Float32Array(row.vector.buffer, row.vector.byteOffset, row.vector.byteLength / 4),
   }));
 }

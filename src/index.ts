@@ -159,6 +159,7 @@ async function main() {
       try {
         const result = await query(line, db, embeddingClient, embeddingSpec.model, chatClient, {
           history,
+          allowedFilePaths: new Set(walkFiles(notesDir, fileFilters)),
           onStart: () => { stopSpinner(); process.stdout.write('\n'); },
           onChunk: (chunk) => process.stdout.write(chunk.replace(/\r/g, '')),
         });
