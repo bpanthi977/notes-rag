@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import Database from 'better-sqlite3';
 import { OpenRouter } from '@openrouter/sdk';
-import { walkFiles } from './utils';
+import { walkFiles, FileFilters } from './utils';
 import {
   getFileIndex,
   getEmbeddingsByHashes,
@@ -43,10 +43,10 @@ export interface FileInfo {
 export function getFilesToIndex(
   notesDir: string,
   db: Database.Database,
-  force: boolean = false, // force = true bypasses mtime check
-  recursive: boolean = false
+  filters: FileFilters,
+  force: boolean = false
 ): FileInfo[] {
-  const allCurrentPaths = walkFiles(notesDir, ['.org', '.pdf'], recursive);
+  const allCurrentPaths = walkFiles(notesDir, filters);
   const trackedFiles = getFileIndex(db, notesDir);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
 
