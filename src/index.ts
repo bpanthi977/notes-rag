@@ -32,14 +32,14 @@ function parseArgs() {
       remainingArgs.splice(index, 2)
     }
   }
-  let embeddingModelRaw = `openrouter:${DEFAULT_EMBEDDING_MODEL}`;
+  let embeddingModelRaw = DEFAULT_EMBEDDING_MODEL;
   index = remainingArgs.indexOf('--embedding-model');
   if (index !== -1 && remainingArgs[index + 1]) {
     embeddingModelRaw = remainingArgs[index + 1];
     remainingArgs.splice(index, 2);
   }
 
-  let chatModelRaw = `openrouter:${DEFAULT_CHAT_MODEL}`;
+  let chatModelRaw = DEFAULT_CHAT_MODEL;
   index = remainingArgs.indexOf('--chat-model');
   if (index !== -1 && remainingArgs[index + 1]) {
     chatModelRaw = remainingArgs[index + 1];
