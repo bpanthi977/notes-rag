@@ -32,7 +32,8 @@ export function createProgressReporter(filesTotal: number): {
     const bar = '#'.repeat(filled) + '.'.repeat(BAR_WIDTH - filled);
     const fileName = currentFile ? path.basename(currentFile) : '';
     const label = fileName ? `${stage} | ${fileName}` : stage;
-    const line = `\r[${bar}] ${filesDone}/${filesTotal} | ${label}`;
+    const formattedFilesDone = Number.isInteger(filesDone) ? filesDone : filesDone.toFixed(3);
+    const line = `\r[${bar}] ${formattedFilesDone}/${filesTotal} | ${label}`;
     const padded = line + ' '.repeat(Math.max(0, lastLineLen - line.length));
     lastLineLen = line.length;
     process.stdout.write(padded);

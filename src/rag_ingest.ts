@@ -134,7 +134,7 @@ export async function ingestFiles(
 	{
 	  batchSize: maxChunksForEmbedding,
 	  onBatchDone: (chunksEmbedded, totalChunks) => {
-	    const approxFiles = totalFilesProcessed + Math.round((chunksEmbedded / totalChunks) * fileData.length);
+	    const approxFiles = totalFilesProcessed + (chunksEmbedded / totalChunks) * fileData.length;
 	    onProgress?.({ stage: 'embedding', filesDone: approxFiles, filesTotal, currentFile: '' });
 	  },
 	}
