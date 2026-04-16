@@ -74,7 +74,7 @@ export async function query(
   const qVec = new Float32Array(questionVector);
 
   // 2. Score all stored vectors
-  const allVectors = getAllVectors(db);
+  const allVectors = getAllVectors(db, embeddingModel);
   const scored = allVectors.map(({ chunkId, vector }) => ({
     chunkId,
     score: cosineSimilarity(qVec, vector),

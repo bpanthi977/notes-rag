@@ -123,8 +123,8 @@ export function deleteFile(db: Database.Database, filePath: string): void {
   })();
 }
 
-export function getAllVectors(db: Database.Database): { chunkId: number; vector: Float32Array }[] {
-  const rows = db.prepare('SELECT chunk_id, vector FROM embeddings').all() as
+export function getAllVectors(db: Database.Database, embeddingModel: string): { chunkId: number; vector: Float32Array }[] {
+  const rows = db.prepare('SELECT chunk_id, vector FROM embeddings WHERE model = ?').all([embeddingModel]) as
     { chunk_id: number; vector: Buffer }[];
   return rows.map(row => ({
     chunkId: row.chunk_id,
