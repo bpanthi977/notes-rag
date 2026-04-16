@@ -43,24 +43,22 @@ export interface FileInfo {
 export function getFilesToIndex(
   notesDir: string,
   db: Database.Database,
-  filters: FileFilters,
+  allFiles: Set<string>,
   embeddingModel: string,
   force: boolean = false
 ): FileInfo[] {
-  const allCurrentPaths = walkFiles(notesDir, filters);
   const trackedFiles = getFileIndex(db, notesDir);
   const indexedForModel = getFilesIndexedForModel(db, notesDir, embeddingModel);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
 
-  const currentPathsSet = new Set(allCurrentPaths);
   for (const [trackedPath] of trackedFiles) {
-    if (!currentPathsSet.has(trackedPath)) {
+    if (!allFiles.has(trackedPath)) {
       console.log(`Removing stale file: ${trackedPath}`);
       deleteFile(db, trackedPath);
     }
   }
 
-  for (const filePath of allCurrentPaths) {
+  for (const filePath of allFiles.values()) {
     const stats = fs.statSync(filePath);
     const mtime = stats.mtimeMs;
     const lastMtime = trackedFiles.get(filePath);

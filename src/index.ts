@@ -57,10 +57,10 @@ function parseArgs() {
 }
 
 
-function printStats(db: ReturnType<typeof initDB>, notesDir: string, fileFilters: FileFilters, embeddingModel: string): void {
+function printStats(db: ReturnType<typeof initDB>, notesDir: string, allFiles: Set<string>, embeddingModel: string): void {
   const { chunkCount, embeddingCount, indexedFileCount } = getStats(db, notesDir);
-  const totalFiles = walkFiles(notesDir, fileFilters).length;
-  const staleCount = getFilesToIndex(notesDir, db, fileFilters, embeddingModel, false).length;
+  const totalFiles = allFiles.size;
+  const staleCount = getFilesToIndex(notesDir, db, allFiles, embeddingModel, false).length;
   const staleStr = staleCount > 0 ? ` (${staleCount} stale)` : '';
   console.log(`${indexedFileCount}/${totalFiles} files indexed${staleStr}, ${chunkCount} chunks, ${embeddingCount} embeddings.`);
 }
@@ -84,10 +84,11 @@ async function main() {
   const db = initDB(path.join(os.homedir(), '.cache/notes-rag/vector-store.db'));
   const embeddingClient = makeEmbeddingClient(embeddingSpec, apiKey ?? undefined);
   const chatClient = makeChatClient(chatSpec, apiKey ?? undefined);
+  let allFiles = new Set(walkFiles(notesDir, fileFilters));
 
   console.log(`Notes: ${notesDir}`);
 
-  printStats(db, notesDir, fileFilters, embeddingSpec.model);
+  printStats(db, notesDir, allFiles, embeddingSpec.model);
   console.log('Commands: :ingest | :clear | :sources | :quit');
   const history: ConversationTurn[] = [];
   let lastCitations: Citation[] = [];
@@ -110,7 +111,7 @@ async function main() {
     }
 
     if (line === ':ingest') {
-      const files = getFilesToIndex(notesDir, db, fileFilters, embeddingSpec.model, false);
+      const files = getFilesToIndex(notesDir, db, allFiles, embeddingSpec.model, false);
       if (files.length === 0) {
         console.log('Nothing to ingest.');
       } else {
@@ -118,7 +119,7 @@ async function main() {
         await ingestFiles(files, db, embeddingClient, embeddingSpec.model, {
 	  progressBarCreator: createProgressReporter
 	});
-        printStats(db, notesDir, fileFilters, embeddingSpec.model);
+        printStats(db, notesDir, allFiles, embeddingSpec.model);
       }
       rl.prompt();
       return;
@@ -129,7 +130,8 @@ async function main() {
       lastCitations = [];
       console.clear();
       console.log(`Notes: ${notesDir}`);
-      printStats(db, notesDir, fileFilters, embeddingSpec.model);
+      allFiles = new Set(walkFiles(notesDir, fileFilters));
+      printStats(db, notesDir, allFiles, embeddingSpec.model);
       console.log('Commands: :ingest | :clear | :sources | :quit');
       rl.prompt();
       return;
@@ -159,7 +161,7 @@ async function main() {
       try {
         const result = await query(line, db, embeddingClient, embeddingSpec.model, chatClient, {
           history,
-          allowedFilePaths: new Set(walkFiles(notesDir, fileFilters)),
+          allowedFilePaths: allFiles,
           onStart: () => { stopSpinner(); process.stdout.write('\n'); },
           onChunk: (chunk) => process.stdout.write(chunk.replace(/\r/g, '')),
         });
