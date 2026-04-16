@@ -9,25 +9,33 @@ import { walkFiles, FileFilters } from './utils';
 import { query, formatCitationNumbers, ConversationTurn, Citation } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
 
-function parseArgs() {
-  const recursive = process.argv.includes('--recursive');
-  const excludePatterns: string[] = [];
-  for (let i = 2; i < process.argv.length; i++) {
-    if (process.argv[i] === '--exclude' && process.argv[i + 1]) {
-      excludePatterns.push(process.argv[++i]);
-    }
-  }
-  const fileFilters: FileFilters = { extensions: ['.org', '.pdf'], recursive, exclude: excludePatterns };
-  return fileFilters;
-}
-
-function resolveNotesDir(): string {
-  const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
+function resolveNotesDir(argv: string[]): string {
+  const args = argv.slice(2).filter(a => !a.startsWith('--'));
   if (args[0]) return args[0];
   const cwd = path.basename(process.cwd());
   if (cwd === 'notes' || cwd === 'Notes') return process.cwd();
   return path.join(process.cwd(), 'notes');
 }
+
+function parseArgs() {
+  const remainingArgs = [...process.argv];
+
+  let index = remainingArgs.indexOf('--recursive');
+  const recursive = index != -1;
+  if (recursive) remainingArgs.splice(index, 1);
+
+  const excludePatterns: string[] = [];
+  while ((index = remainingArgs.indexOf('--exclude'), index != -1)) {
+    if (remainingArgs[index + 1]) {
+      excludePatterns.push(remainingArgs[index+1]);
+      remainingArgs.splice(index, 2)
+    }
+  }
+  const fileFilters: FileFilters = { extensions: ['.org', '.pdf'], recursive, exclude: excludePatterns };
+  const notesDir = fs.realpathSync(resolveNotesDir(remainingArgs));
+  return {fileFilters, notesDir};
+}
+
 
 function printStats(db: ReturnType<typeof initDB>, notesDir: string, fileFilters: FileFilters): void {
   const { chunkCount, embeddingCount, indexedFileCount } = getStats(db, notesDir);
@@ -44,21 +52,18 @@ async function main() {
     process.exit(1);
   }
 
-  const resolvedDir = resolveNotesDir();
-
-  if (!fs.existsSync(resolvedDir)) {
-    console.error(`Error: Notes directory not found: ${resolvedDir}`);
+  const {fileFilters, notesDir} = parseArgs();
+  if (!fs.existsSync(notesDir)) {
+    console.error(`Error: Notes directory not found: ${notesDir}`);
     console.error('Usage: npx ts-node src/index.ts [--recursive] [<notes-dir>]');
     process.exit(1);
   }
-
-  const notesDir = fs.realpathSync(resolvedDir);
 
   const db = initDB(path.join(os.homedir(), '.cache/notes-rag/vector-store.db'));
   const client = new OpenRouter({ apiKey });
 
   console.log(`Notes: ${notesDir}`);
-  const fileFilters: FileFilters = parseArgs(); 
+
   printStats(db, notesDir, fileFilters);
   console.log('Commands: :ingest | :clear | :sources | :quit');
   const history: ConversationTurn[] = [];

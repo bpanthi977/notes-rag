@@ -156,10 +156,17 @@ async function chunkPdfFile(filePath: string, config: ChunkConfig = {}): Promise
   const overlap = config.overlap ?? DEFAULT_MIN_OVERLAP_FOR_CHUNK;
 
   const buffer = fs.readFileSync(filePath);
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
-  const result = await parser.getText();
-  await parser.destroy();
-  const fullText = result.text;
+  let fullText = '';
+  try {
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    const result = await parser.getText();
+    await parser.destroy();
+    fullText = result.text;
+  } catch (e: any) {
+    console.log(`Error while parsing pdf file: ${filePath}`, e);
+    return []
+  }
+
 
   const chunks: Chunk[] = [];
   let chunkIndex = 0;
