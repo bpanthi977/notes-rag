@@ -107,6 +107,8 @@ async function main() {
 
     if (line === ':quit' || line === ':exit') {
       rl.close();
+      db.close();
+      process.exit(0);
       return;
     }
 
