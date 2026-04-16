@@ -5,6 +5,7 @@ import { walkFiles, FileFilters } from './utils';
 import {
   getFileIndex,
   getEmbeddingsByHashes,
+  getFilesIndexedForModel,
   upsertFileChunks,
   upsertFileIndex,
   deleteFile,
@@ -43,10 +44,12 @@ export function getFilesToIndex(
   notesDir: string,
   db: Database.Database,
   filters: FileFilters,
+  embeddingModel: string,
   force: boolean = false
 ): FileInfo[] {
   const allCurrentPaths = walkFiles(notesDir, filters);
   const trackedFiles = getFileIndex(db, notesDir);
+  const indexedForModel = getFilesIndexedForModel(db, notesDir, embeddingModel);
   const filesToIndex: { filePath: string; mtime: number }[] = [];
 
   const currentPathsSet = new Set(allCurrentPaths);
@@ -62,7 +65,7 @@ export function getFilesToIndex(
     const mtime = stats.mtimeMs;
     const lastMtime = trackedFiles.get(filePath);
 
-    if (force || lastMtime === undefined || mtime !== lastMtime) {
+    if (force || lastMtime === undefined || mtime !== lastMtime || !indexedForModel.has(filePath)) {
       filesToIndex.push({ filePath, mtime });
     }
   }
@@ -111,7 +114,7 @@ export async function ingestFiles(
       count++;
     }
 
-    const cachedVectors = getEmbeddingsByHashes(db, Array.from(allHashesInBatch));
+    const cachedVectors = getEmbeddingsByHashes(db, Array.from(allHashesInBatch), embeddingModel);
     const chunksToEmbed: { text: string; hash: string }[] = [];
     const textToEmbedSet = new Set<string>();
 

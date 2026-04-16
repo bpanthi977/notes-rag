@@ -22,9 +22,10 @@ export function initDB(dbPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_chunks_hash ON chunks(content_hash);
 
     CREATE TABLE IF NOT EXISTS embeddings (
-      chunk_id INTEGER PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
+      chunk_id INTEGER NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
       model    TEXT NOT NULL,
-      vector   BLOB NOT NULL
+      vector   BLOB NOT NULL,
+      PRIMARY KEY (chunk_id, model)
     );
 
     CREATE TABLE IF NOT EXISTS file_index (
@@ -33,6 +34,27 @@ export function initDB(dbPath: string): Database.Database {
       indexed_at  INTEGER NOT NULL
     );
   `);
+
+  // Migrate embeddings table from single-column PK (chunk_id) to composite PK (chunk_id, model)
+  const pkCols = (db.pragma('table_info(embeddings)') as { pk: number; name: string }[])
+    .filter(c => c.pk > 0).map(c => c.name);
+  if (pkCols.length === 1 && pkCols[0] === 'chunk_id') {
+    db.transaction(() => {
+      db.pragma('foreign_keys = OFF');
+      db.exec(`
+        CREATE TABLE embeddings_new (
+          chunk_id INTEGER NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
+          model    TEXT NOT NULL,
+          vector   BLOB NOT NULL,
+          PRIMARY KEY (chunk_id, model)
+        );
+        INSERT OR IGNORE INTO embeddings_new SELECT chunk_id, model, vector FROM embeddings;
+        DROP TABLE embeddings;
+        ALTER TABLE embeddings_new RENAME TO embeddings;
+      `);
+      db.pragma('foreign_keys = ON');
+    })();
+  }
 
   return db;
 }
@@ -52,7 +74,7 @@ export function upsertFileChunks(
     VALUES (@filePath, @headingContext, @text, @chunkIndex, @contentHash)
   `);
   const insertEmbedding = db.prepare(
-    'INSERT INTO embeddings (chunk_id, model, vector) VALUES (?, ?, ?)'
+    'INSERT OR REPLACE INTO embeddings (chunk_id, model, vector) VALUES (?, ?, ?)'
   );
 
   db.transaction(() => {
@@ -75,7 +97,8 @@ export function upsertFileChunks(
 
 export function getEmbeddingsByHashes(
   db: Database.Database,
-  hashes: string[]
+  hashes: string[],
+  model: string
 ): Map<string, Float32Array> {
   const result = new Map<string, Float32Array>();
   if (hashes.length === 0) return result;
@@ -85,8 +108,8 @@ export function getEmbeddingsByHashes(
     SELECT c.content_hash, e.vector
     FROM chunks c
     JOIN embeddings e ON c.id = e.chunk_id
-    WHERE c.content_hash IN (${placeholders})
-  `).all(...hashes) as { content_hash: string; vector: Buffer }[];
+    WHERE e.model = ? AND c.content_hash IN (${placeholders})
+  `).all(model, ...hashes) as { content_hash: string; vector: Buffer }[];
 
   for (const row of rows) {
     if (!result.has(row.content_hash)) {
@@ -148,6 +171,20 @@ export function getChunkById(db: Database.Database, id: number): Chunk | undefin
     filePath: row.file_path,
     chunkIndex: row.chunk_index,
   };
+}
+
+export function getFilesIndexedForModel(
+  db: Database.Database,
+  notesDir: string,
+  model: string
+): Set<string> {
+  const rows = db.prepare(`
+    SELECT DISTINCT c.file_path
+    FROM chunks c
+    JOIN embeddings e ON c.id = e.chunk_id
+    WHERE e.model = ? AND c.file_path GLOB ?
+  `).all(model, notesDir + '/*') as { file_path: string }[];
+  return new Set(rows.map(r => r.file_path));
 }
 
 export function getStats(db: Database.Database, notesDir?: string): { chunkCount: number; embeddingCount: number; indexedFileCount: number } {
