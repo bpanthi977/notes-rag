@@ -19,7 +19,3 @@ export function walkFiles(dir: string, extensions: string[], recursive = false):
   walk(dir);
   return files;
 }
-
-export function walkOrgFiles(dir: string, recursive = false): string[] {
-  return walkFiles(dir, ['.org'], recursive);
-}

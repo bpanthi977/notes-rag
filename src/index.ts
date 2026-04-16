@@ -5,7 +5,7 @@ import * as readline from 'readline';
 import { OpenRouter } from '@openrouter/sdk';
 import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
-import { walkOrgFiles } from './utils';
+import { walkFiles } from './utils';
 import { query, formatCitationNumbers, ConversationTurn, Citation } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
 
@@ -21,7 +21,7 @@ function resolveNotesDir(): string {
 
 function printStats(db: ReturnType<typeof initDB>, notesDir: string): void {
   const { chunkCount, embeddingCount, indexedFileCount } = getStats(db, notesDir);
-  const totalFiles = walkOrgFiles(notesDir, recursive).length;
+  const totalFiles = walkFiles(notesDir, ['.org', '.pdf'], recursive).length;
   const staleCount = getFilesToIndex(notesDir, db, false, recursive).length;
   const staleStr = staleCount > 0 ? ` (${staleCount} stale)` : '';
   console.log(`${indexedFileCount}/${totalFiles} files indexed${staleStr}, ${chunkCount} chunks, ${embeddingCount} embeddings.`);
