@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import Database from 'better-sqlite3';
-import { OpenRouter } from '@openrouter/sdk';
 import { walkFiles, FileFilters } from './utils';
 import {
   getFileIndex,
@@ -12,7 +11,8 @@ import {
 } from './store';
 import { chunkFile, Chunk } from './chunker';
 import { embed } from './embeddings';
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_MAX_FILES_FOR_CHUNKS, DEFAULT_MAX_CHUNKS_FOR_EMBEDDING } from './constants';
+import { EmbeddingClient } from './providers';
+import { DEFAULT_MAX_FILES_FOR_CHUNKS, DEFAULT_MAX_CHUNKS_FOR_EMBEDDING } from './constants';
 
 export interface IngestProgress {
   stage: 'chunking' | 'embedding' | 'storing';
@@ -22,7 +22,6 @@ export interface IngestProgress {
 }
 
 export interface IngestOptions {
-  embeddingModel?: string; // default: DEFAULT_EMBEDDING_MODEL
   maxFilesForChunks?: number; // max files to chunk at once (default: 50)
   maxChunksForEmbedding?: number; // max chunks per embed() API call (default: embed()'s own batch size)
   progressBarCreator?: (totalFiles: number) => {
@@ -74,11 +73,11 @@ export function getFilesToIndex(
 export async function ingestFiles(
   filesToIndex: FileInfo[],
   db: Database.Database,
-  client: OpenRouter,
+  embeddingClient: EmbeddingClient,
+  embeddingModel: string,
   options: IngestOptions = {}
 ): Promise<void> {
   const {
-    embeddingModel = DEFAULT_EMBEDDING_MODEL,
     maxFilesForChunks = DEFAULT_MAX_FILES_FOR_CHUNKS,
     maxChunksForEmbedding = DEFAULT_MAX_CHUNKS_FOR_EMBEDDING,
     progressBarCreator
@@ -130,9 +129,8 @@ export async function ingestFiles(
       onProgress?.({ stage: 'embedding', filesDone: totalFilesProcessed, filesTotal, currentFile: '' });
       const newVectors = await embed(
 	chunksToEmbed.map(c => c.text),
-	client,
+	embeddingClient,
 	{
-	  model: embeddingModel,
 	  batchSize: maxChunksForEmbedding,
 	  onBatchDone: (chunksEmbedded, totalChunks) => {
 	    const approxFiles = totalFilesProcessed + Math.round((chunksEmbedded / totalChunks) * fileData.length);

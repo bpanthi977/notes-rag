@@ -1,9 +1,9 @@
-import { OpenRouter } from "@openrouter/sdk";
 import Database from "better-sqlite3";
 import { embed } from "./embeddings";
 import { getAllVectors, getChunkById } from "./store";
 import { Chunk } from "./chunker";
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_CHAT_MODEL, DEFAULT_RAG_RETRIEVAL_K } from "./constants";
+import { EmbeddingClient, ChatClient, ChatMessage } from "./providers";
+import { DEFAULT_RAG_RETRIEVAL_K } from "./constants";
 
 export interface Citation {
   numbers: number[];   // citation numbers from the answer pointing to this file
@@ -22,8 +22,6 @@ export interface ConversationTurn {
 }
 
 export interface QueryConfig {
-  embeddingModel?: string;
-  chatModel?: string;
   k?: number;
   history?: ConversationTurn[];
   onChunk?: (chunk: string) => void;
@@ -62,15 +60,15 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
 export async function query(
   question: string,
   db: Database.Database,
-  client: OpenRouter,
+  embeddingClient: EmbeddingClient,
+  embeddingModel: string,
+  chatClient: ChatClient,
   config?: QueryConfig
 ): Promise<QueryResult> {
-  const embeddingModel = config?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
-  const chatModel = config?.chatModel ?? DEFAULT_CHAT_MODEL;
   const k = config?.k ?? DEFAULT_RAG_RETRIEVAL_K;
 
   // 1. Embed the question
-  const [questionVector] = await embed([question], client, { model: embeddingModel });
+  const [questionVector] = await embed([question], embeddingClient);
   const qVec = new Float32Array(questionVector);
 
   // 2. Score all stored vectors
@@ -130,35 +128,13 @@ export async function query(
     { role: "assistant" as const, content: turn.answer },
   ]);
 
-  const messages = [{role: "system" as const, content: "Your are personalized knowledge base assistant. Answer the last question asked based on the notes provided."}, ...historyMessages, { role: "user" as const, content: prompt }];
-  let answer: string;
+  const messages: ChatMessage[] = [{role: "system", content: "Your are personalized knowledge base assistant. Answer the last question asked based on the notes provided."}, ...historyMessages, { role: "user", content: prompt }];
   const { onChunk, onStart } = config ?? {};
-
-  if (onChunk) {
-    const stream = await client.chat.send({
-      chatGenerationParams: { model: chatModel, messages, stream: true },
-    });
-    let started = false;
-    let fullAnswer = "";
-    for await (const chunk of stream) {
-      const text = chunk.choices?.[0]?.delta?.content ?? "";
-      if (text) {
-	if (!started) { onStart?.(); started = true; }
-	fullAnswer += text;
-	onChunk(text);
-      }
-    }
-    answer = fullAnswer;
-  } else {
-    const response = await client.chat.send({
-      chatGenerationParams: { model: chatModel, messages },
-    });
-    if (typeof response === "string") {
-      throw new Error(`Chat API returned unexpected string: ${response}`);
-    }
-    const content = (response as { choices: { message: { content?: string } }[] }).choices[0]?.message?.content;
-    answer = typeof content === "string" ? content : "";
-  }
+  let started = false;
+  const answer = await chatClient.chatStream(messages, (text) => {
+    if (!started) { onStart?.(); started = true; }
+    onChunk?.(text);
+  });
 
   // Parse cited numbers in order of first appearance
   const orderedCited: number[] = [];

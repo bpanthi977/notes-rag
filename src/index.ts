@@ -2,12 +2,13 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as readline from 'readline';
-import { OpenRouter } from '@openrouter/sdk';
 import { initDB, getStats } from './store';
 import { getFilesToIndex, ingestFiles } from './rag_ingest';
 import { walkFiles, FileFilters } from './utils';
 import { query, formatCitationNumbers, ConversationTurn, Citation } from './rag_query';
 import { createProgressReporter, createSpinner } from './ui';
+import { parseModelSpec, makeEmbeddingClient, makeChatClient } from './providers';
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_CHAT_MODEL } from './constants';
 
 function resolveNotesDir(argv: string[]): string {
   const args = argv.slice(2).filter(a => !a.startsWith('--'));
@@ -31,9 +32,28 @@ function parseArgs() {
       remainingArgs.splice(index, 2)
     }
   }
+  let embeddingModelRaw = `openrouter:${DEFAULT_EMBEDDING_MODEL}`;
+  index = remainingArgs.indexOf('--embedding-model');
+  if (index !== -1 && remainingArgs[index + 1]) {
+    embeddingModelRaw = remainingArgs[index + 1];
+    remainingArgs.splice(index, 2);
+  }
+
+  let chatModelRaw = `openrouter:${DEFAULT_CHAT_MODEL}`;
+  index = remainingArgs.indexOf('--chat-model');
+  if (index !== -1 && remainingArgs[index + 1]) {
+    chatModelRaw = remainingArgs[index + 1];
+    remainingArgs.splice(index, 2);
+  }
+
   const fileFilters: FileFilters = { extensions: ['.org', '.pdf'], recursive, exclude: excludePatterns };
   const notesDir = fs.realpathSync(resolveNotesDir(remainingArgs));
-  return {fileFilters, notesDir};
+  return {
+    fileFilters,
+    notesDir,
+    embeddingSpec: parseModelSpec(embeddingModelRaw),
+    chatSpec: parseModelSpec(chatModelRaw),
+  };
 }
 
 
@@ -46,21 +66,24 @@ function printStats(db: ReturnType<typeof initDB>, notesDir: string, fileFilters
 }
 
 async function main() {
+  const { fileFilters, notesDir, embeddingSpec, chatSpec } = parseArgs();
+
+  const needsOpenRouter = embeddingSpec.provider === 'openrouter' || chatSpec.provider === 'openrouter';
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.error('Error: OPENROUTER_API_KEY environment variable is not set.');
+  if (needsOpenRouter && !apiKey) {
+    console.error('Error: OPENROUTER_API_KEY environment variable is not set (required for openrouter provider).');
     process.exit(1);
   }
 
-  const {fileFilters, notesDir} = parseArgs();
   if (!fs.existsSync(notesDir)) {
     console.error(`Error: Notes directory not found: ${notesDir}`);
-    console.error('Usage: npx ts-node src/index.ts [--recursive] [<notes-dir>]');
+    console.error('Usage: npx ts-node src/index.ts [--recursive] [--embedding-model <spec>] [--chat-model <spec>] [<notes-dir>]');
     process.exit(1);
   }
 
   const db = initDB(path.join(os.homedir(), '.cache/notes-rag/vector-store.db'));
-  const client = new OpenRouter({ apiKey });
+  const embeddingClient = makeEmbeddingClient(embeddingSpec, apiKey ?? undefined);
+  const chatClient = makeChatClient(chatSpec, apiKey ?? undefined);
 
   console.log(`Notes: ${notesDir}`);
 
@@ -92,7 +115,7 @@ async function main() {
         console.log('Nothing to ingest.');
       } else {
 
-        await ingestFiles(files, db, client, {
+        await ingestFiles(files, db, embeddingClient, embeddingSpec.model, {
 	  progressBarCreator: createProgressReporter
 	});
         printStats(db, notesDir, fileFilters);
@@ -134,7 +157,7 @@ async function main() {
         if (!spinnerStopped) { spinnerStopped = true; spinner.stop(); }
       };
       try {
-        const result = await query(line, db, client, {
+        const result = await query(line, db, embeddingClient, embeddingSpec.model, chatClient, {
           history,
           onStart: () => { stopSpinner(); process.stdout.write('\n'); },
           onChunk: (chunk) => process.stdout.write(chunk.replace(/\r/g, '')),
